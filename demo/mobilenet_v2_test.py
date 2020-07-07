@@ -24,19 +24,22 @@ with tf.Session() as sess:
     file_input = tf.placeholder(tf.string, ())
 
     image = tf.image.decode_jpeg(tf.read_file(file_input))
-
+    image_size = 128
+    depth_multiplier = 0.5
     images = tf.expand_dims(image, 0)
     images = tf.cast(images, tf.float32) / 128. - 1
     images.set_shape((None, None, None, 3))
-    images = tf.image.resize_images(images, (192, 192))
+    images = tf.image.resize_images(images, (image_size, image_size))
 
     with tf.contrib.slim.arg_scope(mobilenet_v2.training_scope(is_training=True)):
-        logits, endpoints = mobilenet_v2.mobilenet(images)
+        #logits, endpoints = mobilenet_v2.mobilenet(images, depth_multiplier=depth_multiplier)
+        logits, endpoints = mobilenet_v2.mobilenet_v2_050(images)
     ema = tf.train.ExponentialMovingAverage(0.999)
     vars = ema.variables_to_restore()
     #print("Vars: ", vars)
     saver = tf.train.Saver(vars)
-    saver.restore(sess, "/home/waechter/repos/tf-models/research/slim/nets/mobilenet/checkpoint/mobilenet_v2_1.0_192.ckpt")
+    #saver.restore(sess, "/home/waechter/repos/tf-models/research/slim/nets/mobilenet/checkpoint/mobilenet_v2_1.0_192.ckpt")
+    saver.restore(sess, "/home/waechter/repos/tf-models/research/slim/nets/mobilenet/checkpoint/mobilenet_v2_" +str(depth_multiplier) + "_" + str(image_size) + ".ckpt")
     print("Model restored.")
 
     x = endpoints['Predictions'].eval(feed_dict={file_input: 'panda.jpg'})
