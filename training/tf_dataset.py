@@ -57,6 +57,7 @@ class Dataset(object):
         self.sess = sess
         self.delta = delta
         self.prefetch_size = prefetch_size
+        print("Using batch cache port " + str(port))
         self.port = port
         self.debug = debug
 
@@ -83,6 +84,7 @@ class Dataset(object):
 
     def getData(self):
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        # print("Connecting to " + HOST + ":"+ str(self.port))
         sock.connect((HOST, self.port))
         sock.sendall(('Ready' + '\n').encode('utf-8'))
         receivedBytes = sock.recv(4)
@@ -289,7 +291,7 @@ class Dataset(object):
                     plots = [bigImage0, bigImage1, image0, image1]
                     subplot = drawing.subplot(plots, 2, 2, outputWidth=OUTPUT_WIDTH, outputHeight=OUTPUT_HEIGHT, border=5)
                     cv2.imshow('debug', subplot[:,:,::-1])
-                    cv2.waitKey(0)
+                    cv2.waitKey(1)
 
             if mirrored:
                 tImage = np.fliplr(

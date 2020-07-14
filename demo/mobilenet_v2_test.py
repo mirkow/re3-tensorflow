@@ -64,3 +64,6 @@ with tf.Session() as sess:
 # tensorboard_callback = keras.callbacks.TensorBoard(log_dir=logdir)
 #print(tf.summary.tensor_summary("mobilenet_v2", endpoints['Predictions']))
     file_writer = tf.summary.FileWriter('logs', sess.graph)
+    converter = tf.lite.TFLiteConverter.from_session(sess, [images], [endpoints['Predictions']])
+    tflite_model = converter.convert()
+    #open("converted_model.tflite", "wb").write(tflite_model)

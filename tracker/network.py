@@ -16,7 +16,87 @@ msra_initializer = tf.contrib.layers.variance_scaling_initializer()
 bias_initializer = tf.zeros_initializer()
 prelu_initializer = tf.constant_initializer(0.25)
 
+def mobilenet_v2(model_file, input, batch_size, num_unrolls, image_size = 128, depth_multiplier = 0.5):
+    from nets.mobilenet import mobilenet_v2
+    if model_file is None:
+        model_file = "/home/waechter/repos/tf-models/research/slim/nets/mobilenet/checkpoint/mobilenet_v2_" + str(
+            depth_multiplier) + "_" + str(image_size) + ".ckpt"
+    with tf.Session() as sess:
+        print("input: ", input.shape)
+
+        #image2 = tf.gather(input, [None,1,None,None, None])
+        #images = tf.expand_dims(input, 0)
+        # image1 = images[:,0,:,:,:] #tf.gather(input, [None,0,None,None, None])
+        # image2 = images[:,1,:,:,:] #tf.gather(input, [None,0,None,None, None])
+        # print("input: ", input.shape, " image: ", images.shape)
+        # print("input: ", input.shape, " image: ", images.shape, "image1: ", image1.shape)
+        images = tf.cast(input, tf.float32) / 128. - 1
+        print(images.shape)
+        images.set_shape((None, None, None, 3))
+        print("images shape after: ", input.shape)
+        images = tf.image.resize(images, (image_size, image_size))
+        with tf.contrib.slim.arg_scope(mobilenet_v2.training_scope(is_training=True)):
+            # logits, endpoints = mobilenet_v2.mobilenet(images, depth_multiplier=depth_multiplier)
+            logits, endpoints = mobilenet_v2.mobilenet_v2_050(images)
+        ema = tf.train.ExponentialMovingAverage(0.999)
+        vars = ema.variables_to_restore()
+        changed_vars = {}
+        search_string = "MobilenetV2"
+        for key in vars.keys():
+            pos = int(key.rfind(search_string))
+            #print(key, "pos: ", pos, " str1:", key[pos:])
+            if(pos >=0):
+                changed_vars[key[pos:]] = vars[key]
+        #print(zip(changed_vars.keys(), vars.keys()))
+        # print("Vars: ", vars)
+        saver = tf.train.Saver(changed_vars)
+        # saver.restore(sess, "/home/waechter/repos/tf-models/research/slim/nets/mobilenet/checkpoint/mobilenet_v2_1.0_192.ckpt")
+        saver.restore(sess, model_file)
+        print("Model mobilenet_v2 restored.")
+
+        conv_skip_connection1 = endpoints['layer_3']
+        conv_skip_connection2 = endpoints['layer_10']
+        print("skip1 shape: ", conv_skip_connection1.shape)
+        print("skip2 shape: ", conv_skip_connection2.shape)
+        final_conv = endpoints['layer_17']
+        print("layer_17 shape: ", conv_skip_connection1.shape)
+        final_conv_flat = tf_util.remove_axis(final_conv, [2, 3])
+        print("layer_17_flat shape: ", conv_skip_connection1.shape)
+
+        with tf.variable_scope('conv_skip1'):
+            prelu_skip = tf_util.get_variable('prelu', shape=[16], dtype=tf.float32,
+                                              initializer=prelu_initializer)
+
+            conv1_skip = tf_util.prelu(tf_util.conv_layer(tf.stop_gradient(conv_skip_connection1), 16, 1, activation=None),
+                                       prelu_skip)
+            conv1_skip = tf.transpose(conv1_skip, perm=[0, 3, 1, 2])
+            conv1_skip_flat = tf_util.remove_axis(conv1_skip, [2, 3])
+        with tf.variable_scope('conv_skip2'):
+            prelu_skip = tf_util.get_variable('prelu', shape=[16], dtype=tf.float32,
+                                              initializer=prelu_initializer)
+
+            conv2_skip = tf_util.prelu(tf_util.conv_layer(tf.stop_gradient(conv_skip_connection2), 16, 1, activation=None),
+                                       prelu_skip)
+            conv2_skip = tf.transpose(conv2_skip, perm=[0, 3, 1, 2])
+            conv2_skip_flat = tf_util.remove_axis(conv2_skip, [2, 3])
+
+    final_conv_flat = tf.stop_gradient(final_conv_flat)
+
+    with tf.variable_scope('big_concat'):
+        skip_concat = tf.concat([conv1_skip_flat, conv2_skip_flat, final_conv_flat], 1)
+        skip_concat_shape = skip_concat.get_shape().as_list()
+        print("skip_concat shape: ", skip_concat.shape)
+
+        # Split and merge image pairs
+        # (BxTx2)xHxWxC
+        concat_reshape = tf.reshape(skip_concat, [batch_size, num_unrolls, 2, skip_concat_shape[-1]])
+        # (BxT)x(2xHxWxC)
+        reshaped = tf_util.remove_axis(concat_reshape, [1,3])
+
+        return reshaped
+
 def alexnet_conv_layers(input, batch_size, num_unrolls):
+    print("input: ", input.shape)
     input = tf.to_float(input) - IMAGENET_MEAN
     with tf.variable_scope('conv1'):
         conv1 = tf_util.conv_layer(input, 96, 11, 4, padding='VALID')
@@ -83,8 +163,10 @@ def alexnet_conv_layers(input, batch_size, num_unrolls):
         # Split and merge image pairs
         # (BxTx2)xHxWxC
         pool5_reshape = tf.reshape(skip_concat, [batch_size, num_unrolls, 2, skip_concat_shape[-1]])
+        print("pool5_reshape", pool5_reshape.shape)
         # (BxT)x(2xHxWxC)
         reshaped = tf_util.remove_axis(pool5_reshape, [1,3])
+        print("reshaped", reshaped.shape)
 
         return reshaped
 
@@ -100,9 +182,10 @@ def inference(inputs, num_unrolls, train, batch_size=None, prevLstmState=None, r
         reuse = None
 
     with tf.variable_scope('re3', reuse=reuse):
-        conv_layers = alexnet_conv_layers(inputs, batch_size, num_unrolls)
+        # conv_layers = alexnet_conv_layers(inputs, batch_size, num_unrolls)
+        conv_layers = mobilenet_v2(None, inputs, batch_size, num_unrolls)
 
-        # Embed Fully Connected Layer
+        #  Embed Fully Connected Layer
         with tf.variable_scope('fc6'):
             fc6_out = tf_util.fc_layer(conv_layers, 1024)
 

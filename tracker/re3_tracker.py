@@ -5,16 +5,20 @@ import os
 import tensorflow as tf
 import time
 
+os.environ['TF_CPP_MIN_LOG_LEVEL']='2'
+
 import sys
 import os.path
 sys.path.append(os.path.abspath(os.path.join(
     os.path.dirname(__file__), os.path.pardir)))
-
+#sys.path.append('/home/waechter/repos/tf-models/research')
 from tracker import network
-
 from re3_utils.util import bb_util
 from re3_utils.util import im_util
 from re3_utils.tensorflow_util import tf_util
+
+
+#from mobilenet_v3 import mobilenet_v3_large, mobilenet_v3_small
 
 # Network Constants
 from constants import CROP_SIZE
@@ -38,6 +42,7 @@ class Re3Tracker(object):
                 self.imagePlaceholder, num_unrolls=1, batch_size=self.batch_size, train=False,
                 prevLstmState=self.prevLstmState)
         self.sess = tf_util.Session()
+
         self.sess.run(tf.global_variables_initializer())
         ckpt = tf.train.get_checkpoint_state(os.path.join(basedir, '..', LOG_DIR, 'checkpoints'))
         if ckpt is None:
@@ -59,7 +64,7 @@ class Re3Tracker(object):
     def track(self, unique_id, image, starting_box=None):
         start_time = time.time()
 
-        if type(image) == str:
+        if type(image) == str or type(image) == unicode:
             image = cv2.imread(image)[:,:,::-1]
         else:
             image = image.copy()

@@ -5,6 +5,8 @@ import xml.etree.ElementTree as ET
 import os
 import sys
 
+from pexpect import searcher_re
+
 basedir = os.path.dirname(__file__)
 sys.path.append(os.path.abspath(os.path.join(
     basedir,
@@ -18,17 +20,22 @@ from re3_utils.util.im_util import get_image_size
 DEBUG = False
 
 def main(label_type):
-    wildcard = '/*/*/' if label_type == 'train' else '/'
-    dataset_path = 'data/ILSVRC2015/'
+    wildcard = '/*/' if label_type == 'train' else '/'
+    dataset_path = 'data/ILSVRC2012_img_train/'
     annotationPath = dataset_path + 'Annotations/'
     imagePath = dataset_path + 'Data/'
 
     if not os.path.exists(os.path.join('labels', label_type)):
         os.makedirs(os.path.join('labels', label_type))
     imageNameFile = open('labels/' + label_type + '/image_names.txt', 'w')
-
+    search_path = annotationPath + wildcard + '*.xml'
+    print("Searching with " + search_path)
     labels = []
-    labels = glob.glob(annotationPath + 'DET/' + label_type + wildcard + '*.xml')
+    labels = glob.glob(search_path)
+    if(len(labels)== 0):
+        print("Did not find any files with search path " + search_path)
+        exit(1)
+    print("Found label paths in the form of ", labels[0])
     labels.sort()
     images = [label.replace('Annotations', 'Data').replace('xml', 'JPEG') for label in labels]
 

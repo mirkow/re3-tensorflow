@@ -207,6 +207,7 @@ def main(FLAGS):
             if iteration % 500 == 0 or iteration == FLAGS.max_steps:
                 checkpoint_file = os.path.join(LOG_DIR, 'checkpoints', 'model.ckpt')
                 saver.save(sess, checkpoint_file, global_step=iteration)
+                print("Saving checkpoint at " + checkpoint_file)
                 if FLAGS.clearSnapshots:
                     files = glob.glob(LOG_DIR + '/checkpoints/*')
                     for file in files:
@@ -289,7 +290,7 @@ def main(FLAGS):
                         plots = [image0, image1]
                         subplot = drawing.subplot(plots, 1, 2, outputWidth=OUTPUT_WIDTH, outputHeight=OUTPUT_HEIGHT, border=5)
                         cv2.imshow('debug', subplot[:,:,::-1])
-                        cv2.waitKey(0)
+                        cv2.waitKey(1)
     except:
         # Save if error or killed by ctrl-c.
         if not debug:
@@ -308,7 +309,7 @@ if __name__ == '__main__':
     parser.add_argument('-t', '--timing', action='store_true', default=False)
     parser.add_argument('-o', '--output', action='store_true', default=False)
     parser.add_argument('-c', '--clear_snapshots', action='store_true', default=False, dest='clearSnapshots')
-    parser.add_argument('-p', '--port', action='store', default=9987, dest='port', type=int)
+    parser.add_argument('-p', '--port', action='store', default=9997, dest='port', type=int)
     parser.add_argument('--run_val', action='store_true', default=False)
     parser.add_argument('--val_dataset', type=str, default='vot', help='Dataset to test on.')
     parser.add_argument('--val_device', type=str, default='0', help='Device number or string for val process to use.')

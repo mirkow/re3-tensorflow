@@ -21,7 +21,7 @@ DEBUG = False
 
 def main(label_type):
     wildcard = '/*/*/' if label_type == 'train' else '/*/'
-    dataset_path = 'data/ILSVRC2015/'
+    dataset_path = 'ILSVRC2015/'
     annotationPath = dataset_path + 'Annotations/'
     imagePath = dataset_path + 'Data/'
 

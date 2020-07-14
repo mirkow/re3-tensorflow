@@ -8,7 +8,8 @@ def get_data_for_dataset(dataset_name, mode):
         datadir = os.path.join(
                 os.path.dirname(__file__),
                 'datasets',
-                'imagenet_video')
+                'imagenet_video',
+        "data")
         gt = np.load(datadir + '/labels/' + mode + '/labels.npy')
         image_paths = [datadir + '/' + line.strip()
             for line in open(datadir + '/labels/' + mode + '/image_names.txt')]
